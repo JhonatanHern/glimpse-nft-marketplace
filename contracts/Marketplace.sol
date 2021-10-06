@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Marketplace is ERC721{
-    mapping(uint => string) public fileHashes;
+    mapping(uint => string) public fileHash;
     mapping(string => bool) hashExists;
     uint private counter;
     IERC20 private paymentToken;
@@ -25,7 +25,7 @@ contract Marketplace is ERC721{
 
     function mint(string calldata videoHash) external returns(uint) {
         require(!hashExists[videoHash], "file already registered");
-        fileHashes[counter] = videoHash;
+        fileHash[counter] = videoHash;
         hashExists[videoHash] = true;
         _mint(msg.sender, counter);
         counter++;
@@ -72,5 +72,6 @@ contract Marketplace is ERC721{
             tokenIdToAuction[_tokenId].seller,
             tokenIdToAuction[_tokenId].highestBid
         );
+        delete tokenIdToAuction[_tokenId];
     }
 }
