@@ -5,7 +5,9 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Marketplace is ERC721{
-    mapping(uint => string) public fileHash;
+    mapping(uint => string) public fileHash;// ipfs hash
+    mapping(uint => uint) public authorComissionPercent;// percent of auction that goes to the author
+    mapping(uint => address) public author;// this separates the author from the owner for commission purposes
     mapping(string => bool) hashExists;
     uint private counter;
     IERC20 private paymentToken;
@@ -23,10 +25,12 @@ contract Marketplace is ERC721{
         paymentToken = IERC20(_paymentToken);
     }
 
-    function mint(string calldata videoHash) external returns(uint) {
-        require(!hashExists[videoHash], "file already registered");
-        fileHash[counter] = videoHash;
-        hashExists[videoHash] = true;
+    function mint(string calldata _videoHash, uint _authorComissionPercent) external returns(uint) {
+        require(!hashExists[_videoHash], "file already registered");
+        fileHash[counter] = _videoHash;
+        authorComissionPercent[counter] = _authorComissionPercent;
+        author[counter] = msg.sender;
+        hashExists[_videoHash] = true;
         _mint(msg.sender, counter);
         counter++;
         return counter - 1;
@@ -68,10 +72,22 @@ contract Marketplace is ERC721{
         require(tokenIdToAuction[_tokenId].highestBidder == msg.sender, "Marketplace: Only winner can claim");
         require(block.timestamp > tokenIdToAuction[_tokenId].startTime + 24 hours, "Marketplace: Auction time must pass");
         _transfer(address(this), msg.sender, _tokenId);
-        paymentToken.transfer(
-            tokenIdToAuction[_tokenId].seller,
-            tokenIdToAuction[_tokenId].highestBid
-        );
+        if(tokenIdToAuction[_tokenId].seller == author[_tokenId]){
+            paymentToken.transfer(
+                tokenIdToAuction[_tokenId].seller,
+                tokenIdToAuction[_tokenId].highestBid
+            );
+        }else{
+            uint authorComission = tokenIdToAuction[_tokenId].highestBid * 100 / authorComissionPercent[_tokenId];
+            paymentToken.transfer(
+                tokenIdToAuction[_tokenId].seller,
+                tokenIdToAuction[_tokenId].highestBid - authorComission
+            );
+            paymentToken.transfer(
+                author[_tokenId],
+                authorComission
+            );
+        }
         delete tokenIdToAuction[_tokenId];
     }
 }
