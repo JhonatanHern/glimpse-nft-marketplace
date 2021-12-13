@@ -55,10 +55,10 @@ contract Marketplace is ERC721{
         counter++;
         return counter - 1;
     }
-    function setPrice(uint tokenId, uint price) external { // set price for direct purchase
+    function setPrice(uint tokenId, uint newPrice) external { // set price for direct purchase
         require(msg.sender == ownerOf(tokenId), "Must be owner to set price");
         require(tokenIdToAuction[tokenId].seller == address(0), "can't set price during an auction");
-        price[tokenId] = price;
+        price[tokenId] = newPrice;
     }
     function buy(uint tokenId) external { // make direct purchase
         require(price[tokenId] > 0, "NFT not for sale");
