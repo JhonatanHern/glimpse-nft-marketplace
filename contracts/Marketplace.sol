@@ -5,12 +5,20 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+/**
+ * This contract adds three different ways to exchange tokens
+ * 1 - Auction
+ * 2 - Offer that can be accepted by the owner
+ * 3 - Direct purchase for a set price
+*/
+
 contract Marketplace is ERC721{
     using SafeERC20 for IERC20;
 
     mapping(uint => string) public fileHash;// ipfs hash
     mapping(uint => uint) public authorComissionPercent;// percent of auction that goes to the author
     mapping(uint => address) public author;// this separates the author from the owner for commission purposes
+    mapping(uint => uint) public price;// price for direct purchase
     mapping(string => bool) hashExists;
     uint private counter;
     IERC20 private paymentToken;
@@ -47,7 +55,18 @@ contract Marketplace is ERC721{
         counter++;
         return counter - 1;
     }
-    function offer(uint256 tokenId, uint256 amount) external {
+    function setPrice(uint tokenId, uint price) external { // set price for direct purchase
+        require(msg.sender == ownerOf(tokenId), "Must be owner to set price");
+        require(tokenIdToAuction[tokenId].seller == address(0), "can't set price during an auction");
+        price[tokenId] = price;
+    }
+    function buy(uint tokenId) external { // make direct purchase
+        require(price[tokenId] > 0, "NFT not for sale");
+        require(tokenIdToAuction[tokenId].seller == address(0), "can't make direct purchase during an auction");
+        paymentToken.safeTransferFrom(msg.sender, ownerOf(tokenId), price[tokenId]);
+        price[tokenId] = 0;
+    }
+    function makeOffer(uint256 tokenId, uint256 amount) external {
         Offer memory o = Offer(
             false, // bought
             false, // cancelled
@@ -59,13 +78,13 @@ contract Marketplace is ERC721{
     }
     function acceptOffer(uint tokenId, uint offerIndex) external{ // only NFT owner
         require(msg.sender == ownerOf(tokenId));
+        require(tokenIdToAuction[tokenId].seller == address(0), "can't accept offer during an auction");
         Offer storage offerToAccept = offersPerNFT[tokenId][offerIndex];
         require(!offerToAccept.bought, "offer must not have been already accepted");
         require(!offerToAccept.cancelled, "offer must not have been cancelled");
         offerToAccept.bought = true;
         paymentToken.safeTransferFrom(offerToAccept.buyer, msg.sender, offerToAccept.offerAmount);
         _transfer(msg.sender, offerToAccept.buyer, tokenId);
-
     }
     function cancelOffer(uint tokenId, uint offerIndex) external{ // only buyer
         Offer storage offerToReject = offersPerNFT[tokenId][offerIndex];
@@ -86,6 +105,7 @@ contract Marketplace is ERC721{
             highestBidder: address(0)
         });
         tokenIdToAuction[_tokenId] = _auction;
+        price[_tokenId] = 0; // direct purchase is forbidden during an auction
     }
     function bid(uint256 _tokenId, uint256 amount) external {
         require(amount > tokenIdToAuction[_tokenId].highestBid );
