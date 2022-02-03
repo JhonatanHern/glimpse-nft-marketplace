@@ -1,6 +1,6 @@
 const hre = require("hardhat");
 
-const tokenAddress = '0x0892D833Faf5675D3C1501754e37121DE93390D1'
+const tokenAddress = '0x0802727531845C9eE9c5b8F04E6B6D1D6DF92067'
 
 async function main() {
   const Marketplace = await hre.ethers.getContractFactory("Marketplace")
