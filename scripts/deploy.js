@@ -1,10 +1,11 @@
 const hre = require("hardhat");
 
-const tokenAddress = '0x0802727531845C9eE9c5b8F04E6B6D1D6DF92067'
+const tokenAddress = '0x25469cfe8EF8F0c6fbA6b2533dc2078428Bd9ef5'
+const safe = '0x42261b574358b4EE8ad3D43FB416B4D82D61CD93'
 
 async function main() {
   const Marketplace = await hre.ethers.getContractFactory("Marketplace")
-  const marketplace = await Marketplace.deploy(tokenAddress)
+  const marketplace = await Marketplace.deploy(tokenAddress, 10, safe)
   await marketplace.deployed()
   console.log("Marketplace deployed to:", marketplace.address)
 }

@@ -31,6 +31,7 @@ contract Marketplace is ERC721{
         uint256 highestBid;
         address highestBidder;
         uint256 startTime;
+        uint256 duration;
     }
     struct Offer {
         bool bought;
@@ -103,7 +104,7 @@ contract Marketplace is ERC721{
     function getOffers(uint tokenId) external view returns(Offer [] memory){
         return offersPerNFT[tokenId];
     }
-    function createAuction(uint256 _tokenId, uint128 _startingPrice) external {
+    function createAuction(uint256 _tokenId, uint128 _startingPrice, uint256 _duration) external {
         require(_isApprovedOrOwner(msg.sender, _tokenId), "Marketplace: auction caller is not owner nor approved");
         address owner = ownerOf(_tokenId);
         _transfer(owner, address(this), _tokenId);
@@ -111,7 +112,8 @@ contract Marketplace is ERC721{
             seller: owner,
             highestBid: uint128(_startingPrice),
             startTime: block.timestamp,
-            highestBidder: address(0)
+            highestBidder: address(0),
+            duration: _duration
         });
         tokenIdToAuction[_tokenId] = _auction;
         price[_tokenId] = 0; // direct purchase is forbidden during an auction
@@ -133,7 +135,7 @@ contract Marketplace is ERC721{
     }
     function claimWinningBid(uint _tokenId) external{
         require(tokenIdToAuction[_tokenId].highestBidder == msg.sender, "Marketplace: Only winner can claim");
-        require(block.timestamp > tokenIdToAuction[_tokenId].startTime + 24 hours, "Marketplace: Auction time must pass");
+        require(block.timestamp > tokenIdToAuction[_tokenId].startTime + tokenIdToAuction[_tokenId].duration, "Marketplace: Auction time must pass");
         _transfer(address(this), msg.sender, _tokenId);
         uint tax;
         if(tokenIdToAuction[_tokenId].seller == author[_tokenId]){
