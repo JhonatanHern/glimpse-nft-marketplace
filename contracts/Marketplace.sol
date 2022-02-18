@@ -73,6 +73,7 @@ contract Marketplace is ERC721{
         paymentToken.safeTransferFrom(msg.sender, ownerOf(tokenId), price[tokenId] - tax);
         price[tokenId] = 0;
         earnings = earnings + tax;
+        _transfer(ownerOf(tokenId), msg.sender, tokenId);
     }
     function makeOffer(uint256 tokenId, uint256 amount) external {
         Offer memory o = Offer(
@@ -95,6 +96,7 @@ contract Marketplace is ERC721{
         paymentToken.safeTransferFrom(offerToAccept.buyer, msg.sender, offerToAccept.offerAmount - tax);
         _transfer(msg.sender, offerToAccept.buyer, tokenId);
         earnings = earnings + tax;
+        price[tokenId] = 0;
     }
     function cancelOffer(uint tokenId, uint offerIndex) external{ // only buyer
         Offer storage offerToReject = offersPerNFT[tokenId][offerIndex];
@@ -158,6 +160,7 @@ contract Marketplace is ERC721{
         }
         earnings = earnings + tax;
         delete tokenIdToAuction[_tokenId];
+        price[_tokenId] = 0;
     }
     function withdraw() external {
         paymentToken.safeTransfer(
