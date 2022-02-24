@@ -53,6 +53,7 @@ contract Marketplace is ERC721{
 
     function mint(string calldata _videoHash, uint _authorComissionPercent) external returns(uint) {
         require(!hashExists[_videoHash], "file already registered");
+        require(_authorComissionPercent <= 10, "Author comission cannot excede 5%");
         fileHash[counter] = _videoHash;
         authorComissionPercent[counter] = _authorComissionPercent;
         author[counter] = msg.sender;
@@ -70,10 +71,17 @@ contract Marketplace is ERC721{
         require(price[tokenId] > 0, "NFT not for sale");
         require(tokenIdToAuction[tokenId].seller == address(0), "can't make direct purchase during an auction");
         uint tax = price[tokenId] / taxRate;
-        paymentToken.safeTransferFrom(msg.sender, ownerOf(tokenId), price[tokenId] - tax);
+        address owner = ownerOf(tokenId);
+        if (author[tokenId] == owner) {
+            paymentToken.safeTransferFrom(msg.sender, owner, price[tokenId] - tax);
+        } else {
+            uint authorComission = price[tokenId] * authorComissionPercent[tokenId] / 100;
+            paymentToken.safeTransferFrom(msg.sender, owner, price[tokenId] - tax - authorComission);
+            paymentToken.safeTransferFrom(msg.sender, author[tokenId], authorComission);
+        }
         price[tokenId] = 0;
         earnings = earnings + tax;
-        _transfer(ownerOf(tokenId), msg.sender, tokenId);
+        _transfer(owner, msg.sender, tokenId);
     }
     function makeOffer(uint256 tokenId, uint256 amount) external {
         Offer memory o = Offer(
@@ -86,14 +94,20 @@ contract Marketplace is ERC721{
         emit OfferMade(tokenId, amount);
     }
     function acceptOffer(uint tokenId, uint offerIndex) external{ // only NFT owner
-        require(msg.sender == ownerOf(tokenId));
+        require(msg.sender == ownerOf(tokenId), "You must be the owner to accept an offer");
         require(tokenIdToAuction[tokenId].seller == address(0), "can't accept offer during an auction");
         Offer storage offerToAccept = offersPerNFT[tokenId][offerIndex];
         require(!offerToAccept.bought, "offer must not have been already accepted");
         require(!offerToAccept.cancelled, "offer must not have been cancelled");
         offerToAccept.bought = true;
         uint tax = offerToAccept.offerAmount / taxRate;
-        paymentToken.safeTransferFrom(offerToAccept.buyer, msg.sender, offerToAccept.offerAmount - tax);
+        if (author[tokenId] == msg.sender) {
+            paymentToken.safeTransferFrom(offerToAccept.buyer, msg.sender, offerToAccept.offerAmount - tax);
+        } else {
+            uint authorComission = offerToAccept.offerAmount * authorComissionPercent[tokenId] / 100;
+            paymentToken.safeTransferFrom(offerToAccept.buyer, msg.sender, offerToAccept.offerAmount - tax - authorComission);
+            paymentToken.safeTransferFrom(offerToAccept.buyer, author[tokenId], authorComission);
+        }
         _transfer(msg.sender, offerToAccept.buyer, tokenId);
         earnings = earnings + tax;
         price[tokenId] = 0;
@@ -147,7 +161,7 @@ contract Marketplace is ERC721{
                 tokenIdToAuction[_tokenId].highestBid - tax
             );
         }else{
-            uint authorComission = tokenIdToAuction[_tokenId].highestBid * 100 / authorComissionPercent[_tokenId];
+            uint authorComission = tokenIdToAuction[_tokenId].highestBid * authorComissionPercent[_tokenId] / 100;
             tax = (tokenIdToAuction[_tokenId].highestBid - authorComission) / taxRate;
             paymentToken.safeTransfer(
                 tokenIdToAuction[_tokenId].seller,
