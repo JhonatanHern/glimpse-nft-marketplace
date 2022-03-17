@@ -62,6 +62,17 @@ contract Marketplace is ERC721{
         counter++;
         return counter - 1;
     }
+    function mintTo(string calldata _videoHash, uint _authorComissionPercent, address _to) external returns(uint) {
+        require(!hashExists[_videoHash], "file already registered");
+        require(_authorComissionPercent <= 10, "Author comission cannot excede 5%");
+        fileHash[counter] = _videoHash;
+        authorComissionPercent[counter] = _authorComissionPercent;
+        author[counter] = msg.sender;
+        hashExists[_videoHash] = true;
+        _mint(_to, counter);
+        counter++;
+        return counter - 1;
+    }
     function setPrice(uint tokenId, uint newPrice) external { // set price for direct purchase
         require(msg.sender == ownerOf(tokenId), "Must be owner to set price");
         require(tokenIdToAuction[tokenId].seller == address(0), "can't set price during an auction");
@@ -80,7 +91,7 @@ contract Marketplace is ERC721{
             paymentToken.safeTransferFrom(msg.sender, author[tokenId], authorComission);
         }
         price[tokenId] = 0;
-        earnings = earnings + tax;
+        paymentToken.safeTransferFrom(msg.sender, safe, tax);
         _transfer(owner, msg.sender, tokenId);
     }
     function makeOffer(uint256 tokenId, uint256 amount) external {
@@ -109,7 +120,7 @@ contract Marketplace is ERC721{
             paymentToken.safeTransferFrom(offerToAccept.buyer, author[tokenId], authorComission);
         }
         _transfer(msg.sender, offerToAccept.buyer, tokenId);
-        earnings = earnings + tax;
+        paymentToken.safeTransferFrom(offerToAccept.buyer, safe, tax);
         price[tokenId] = 0;
     }
     function cancelOffer(uint tokenId, uint offerIndex) external{ // only buyer
