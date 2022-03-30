@@ -27,7 +27,7 @@ contract Marketplace is ERC721{
     address private masterWallet;
     
     modifier onlyMasterWallet(){
-      require(msg.sender === masterWallet, "you have not permission to do that!");
+      require(msg.sender == masterWallet, "you have not permission to do that!");
       _;
     } 
 
@@ -39,7 +39,7 @@ contract Marketplace is ERC721{
     }
 
     function setMasterWallet(address _masterWallet) external onlyMasterWallet{
-      masterWallet = _setMasterWallet;
+      masterWallet = _masterWallet;
     }
 
     function mint(string calldata _videoHash, uint _authorComissionPercent) external returns(uint) {
