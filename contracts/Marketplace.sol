@@ -24,11 +24,22 @@ contract Marketplace is ERC721{
     uint private counter;
     IERC20 private paymentToken;
     address private safe;// address to withdraw earnings
+    address private masterWallet;
+    
+    modifier onlyMasterWallet(){
+      require(msg.sender === masterWallet, "you have not permission to do that!");
+      _;
+    } 
 
-    constructor(address _paymentToken, uint _taxRate, address _safe) ERC721("Glimpse", "GLMS"){
+    constructor(address _paymentToken, uint _taxRate, address _safe,address _masterWallet) ERC721("Glimpse", "GLMS"){
         paymentToken = IERC20(_paymentToken);
         taxRate = _taxRate;
         safe = _safe;
+        masterWallet = _masterWallet;
+    }
+
+    function setMasterWallet(address _masterWallet) external onlyMasterWallet{
+      masterWallet = _setMasterWallet;
     }
 
     function mint(string calldata _videoHash, uint _authorComissionPercent) external returns(uint) {
@@ -42,7 +53,8 @@ contract Marketplace is ERC721{
         counter++;
         return counter - 1;
     }
-    function masterMint(string calldata _videoHash, uint _authorComissionPercent, address sender) external returns(uint) {
+
+    function masterMint(string calldata _videoHash, uint _authorComissionPercent, address sender) external onlyMasterWallet returns(uint) {
         require(!hashExists[_videoHash], "file already registered");
         require(_authorComissionPercent <= 10, "Author comission cannot excede 10%");
         fileHash[counter] = _videoHash;
@@ -66,7 +78,8 @@ contract Marketplace is ERC721{
         return counter - 1;
     }
 
-    function masterMintTo(string calldata _videoHash, uint _authorComissionPercent, address _to, address sender) external returns(uint) {
+
+    function masterMintTo(string calldata _videoHash, uint _authorComissionPercent, address _to, address sender) external onlyMasterWallet returns(uint) {
         require(!hashExists[_videoHash], "file already registered");
         require(_authorComissionPercent <= 10, "Author comission cannot excede 10%");
         fileHash[counter] = _videoHash;
@@ -77,14 +90,17 @@ contract Marketplace is ERC721{
         counter++;
         return counter - 1;
     }
+
     function setPrice(uint tokenId, uint newPrice) external { // set price for direct purchase
         require(msg.sender == ownerOf(tokenId), "Must be owner to set price");
         price[tokenId] = newPrice;
     }
-    function masterSetPrice(uint tokenId, uint newPrice, address sender) external { // set price for direct purchase
+
+    function masterSetPrice(uint tokenId, uint newPrice, address sender) external onlyMasterWallet { // set price for direct purchase
         require(sender == ownerOf(tokenId), "Must be owner to set price");
         price[tokenId] = newPrice;
     }
+
     function buy(uint tokenId) external { // make direct purchase
         require(price[tokenId] > 0, "NFT not for sale");
         uint tax = price[tokenId] / taxRate;
@@ -100,7 +116,8 @@ contract Marketplace is ERC721{
         paymentToken.safeTransferFrom(msg.sender, safe, tax);
         _transfer(owner, msg.sender, tokenId);
     }
-    function masterBuy(uint tokenId, address sender) external { // make direct purchase
+
+    function masterBuy(uint tokenId, address sender) external onlyMasterWallet { // make direct purchase
         require(price[tokenId] > 0, "NFT not for sale");
         uint tax = price[tokenId] / taxRate;
         address owner = ownerOf(tokenId);
