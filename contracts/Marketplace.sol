@@ -33,7 +33,7 @@ contract Marketplace is ERC721{
 
     function mint(string calldata _videoHash, uint _authorComissionPercent) external returns(uint) {
         require(!hashExists[_videoHash], "file already registered");
-        require(_authorComissionPercent <= 10, "Author comission cannot excede 5%");
+        require(_authorComissionPercent <= 10, "Author comission cannot excede 10%");
         fileHash[counter] = _videoHash;
         authorComissionPercent[counter] = _authorComissionPercent;
         author[counter] = msg.sender;
@@ -42,9 +42,21 @@ contract Marketplace is ERC721{
         counter++;
         return counter - 1;
     }
+    function masterMint(string calldata _videoHash, uint _authorComissionPercent, address sender) external returns(uint) {
+        require(!hashExists[_videoHash], "file already registered");
+        require(_authorComissionPercent <= 10, "Author comission cannot excede 10%");
+        fileHash[counter] = _videoHash;
+        authorComissionPercent[counter] = _authorComissionPercent;
+        author[counter] = sender;
+        hashExists[_videoHash] = true;
+        _mint(sender, counter);
+        counter++;
+        return counter - 1;
+    }
+
     function mintTo(string calldata _videoHash, uint _authorComissionPercent, address _to) external returns(uint) {
         require(!hashExists[_videoHash], "file already registered");
-        require(_authorComissionPercent <= 10, "Author comission cannot excede 5%");
+        require(_authorComissionPercent <= 10, "Author comission cannot excede 10%");
         fileHash[counter] = _videoHash;
         authorComissionPercent[counter] = _authorComissionPercent;
         author[counter] = msg.sender;
@@ -53,8 +65,24 @@ contract Marketplace is ERC721{
         counter++;
         return counter - 1;
     }
+
+    function masterMintTo(string calldata _videoHash, uint _authorComissionPercent, address _to, address sender) external returns(uint) {
+        require(!hashExists[_videoHash], "file already registered");
+        require(_authorComissionPercent <= 10, "Author comission cannot excede 10%");
+        fileHash[counter] = _videoHash;
+        authorComissionPercent[counter] = _authorComissionPercent;
+        author[counter] = sender;
+        hashExists[_videoHash] = true;
+        _mint(_to, counter);
+        counter++;
+        return counter - 1;
+    }
     function setPrice(uint tokenId, uint newPrice) external { // set price for direct purchase
         require(msg.sender == ownerOf(tokenId), "Must be owner to set price");
+        price[tokenId] = newPrice;
+    }
+    function masterSetPrice(uint tokenId, uint newPrice, address sender) external { // set price for direct purchase
+        require(sender == ownerOf(tokenId), "Must be owner to set price");
         price[tokenId] = newPrice;
     }
     function buy(uint tokenId) external { // make direct purchase
@@ -71,5 +99,20 @@ contract Marketplace is ERC721{
         price[tokenId] = 0;
         paymentToken.safeTransferFrom(msg.sender, safe, tax);
         _transfer(owner, msg.sender, tokenId);
+    }
+    function masterBuy(uint tokenId, address sender) external { // make direct purchase
+        require(price[tokenId] > 0, "NFT not for sale");
+        uint tax = price[tokenId] / taxRate;
+        address owner = ownerOf(tokenId);
+        if (author[tokenId] == owner) {
+            paymentToken.safeTransferFrom(sender, owner, price[tokenId] - tax);
+        } else {
+            uint authorComission = price[tokenId] * authorComissionPercent[tokenId] / 100;
+            paymentToken.safeTransferFrom(sender, owner, price[tokenId] - tax - authorComission);
+            paymentToken.safeTransferFrom(sender, author[tokenId], authorComission);
+        }
+        price[tokenId] = 0;
+        paymentToken.safeTransferFrom(sender, safe, tax);
+        _transfer(owner, sender, tokenId);
     }
 }
