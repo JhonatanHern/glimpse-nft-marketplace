@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicense
+//SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -24,7 +24,7 @@ contract Marketplace is ERC721{
     uint private counter;
     IERC20 private paymentToken;
     address private safe;// address to withdraw earnings
-    address private masterWallet;
+    address private masterWallet; //wallet that pay fees
     
     modifier onlyMasterWallet(){
       require(msg.sender == masterWallet, "you have not permission to do that!");
@@ -42,17 +42,6 @@ contract Marketplace is ERC721{
       masterWallet = _masterWallet;
     }
 
-    function mint(string calldata _videoHash, uint _authorComissionPercent) external returns(uint) {
-        require(!hashExists[_videoHash], "file already registered");
-        require(_authorComissionPercent <= 10, "Author comission cannot excede 10%");
-        fileHash[counter] = _videoHash;
-        authorComissionPercent[counter] = _authorComissionPercent;
-        author[counter] = msg.sender;
-        hashExists[_videoHash] = true;
-        _mint(msg.sender, counter);
-        counter++;
-        return counter - 1;
-    }
 
     function masterMint(string calldata _videoHash, uint _authorComissionPercent, address sender) external onlyMasterWallet returns(uint) {
         require(!hashExists[_videoHash], "file already registered");
@@ -66,55 +55,9 @@ contract Marketplace is ERC721{
         return counter - 1;
     }
 
-    function mintTo(string calldata _videoHash, uint _authorComissionPercent, address _to) external returns(uint) {
-        require(!hashExists[_videoHash], "file already registered");
-        require(_authorComissionPercent <= 10, "Author comission cannot excede 10%");
-        fileHash[counter] = _videoHash;
-        authorComissionPercent[counter] = _authorComissionPercent;
-        author[counter] = msg.sender;
-        hashExists[_videoHash] = true;
-        _mint(_to, counter);
-        counter++;
-        return counter - 1;
-    }
-
-
-    function masterMintTo(string calldata _videoHash, uint _authorComissionPercent, address _to, address sender) external onlyMasterWallet returns(uint) {
-        require(!hashExists[_videoHash], "file already registered");
-        require(_authorComissionPercent <= 10, "Author comission cannot excede 10%");
-        fileHash[counter] = _videoHash;
-        authorComissionPercent[counter] = _authorComissionPercent;
-        author[counter] = sender;
-        hashExists[_videoHash] = true;
-        _mint(_to, counter);
-        counter++;
-        return counter - 1;
-    }
-
-    function setPrice(uint tokenId, uint newPrice) external { // set price for direct purchase
-        require(msg.sender == ownerOf(tokenId), "Must be owner to set price");
-        price[tokenId] = newPrice;
-    }
-
     function masterSetPrice(uint tokenId, uint newPrice, address sender) external onlyMasterWallet { // set price for direct purchase
         require(sender == ownerOf(tokenId), "Must be owner to set price");
         price[tokenId] = newPrice;
-    }
-
-    function buy(uint tokenId) external { // make direct purchase
-        require(price[tokenId] > 0, "NFT not for sale");
-        uint tax = price[tokenId] / taxRate;
-        address owner = ownerOf(tokenId);
-        if (author[tokenId] == owner) {
-            paymentToken.safeTransferFrom(msg.sender, owner, price[tokenId] - tax);
-        } else {
-            uint authorComission = price[tokenId] * authorComissionPercent[tokenId] / 100;
-            paymentToken.safeTransferFrom(msg.sender, owner, price[tokenId] - tax - authorComission);
-            paymentToken.safeTransferFrom(msg.sender, author[tokenId], authorComission);
-        }
-        price[tokenId] = 0;
-        paymentToken.safeTransferFrom(msg.sender, safe, tax);
-        _transfer(owner, msg.sender, tokenId);
     }
 
     function masterBuy(uint tokenId, address sender) external onlyMasterWallet { // make direct purchase
