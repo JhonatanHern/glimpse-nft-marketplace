@@ -6,7 +6,9 @@
     "test": "npx hardhat test",
     "compile": "npmx hardhat compile",
     "deploy-test": "hardhat deploy --network rinkeby",
-    "verify": "hardhat --network rinkeby etherscan-verify --sleep"
+    "deploy-bsc-test": "hardhat deploy --network testBSC",
+    "verify": "hardhat --network rinkeby etherscan-verify --sleep",
+    "verify-bsc": "hardhat --network testBSC etherscan-verify --sleep"
 
   },
   "devDependencies": {
