@@ -1,4 +1,4 @@
-const CONTRACT_NAME = 'TestERC20';
+const CONTRACT_NAME = 'GLIMPSE';
 
 // modify when needed
 module.exports = async ({ getNamedAccounts, deployments }) => {
