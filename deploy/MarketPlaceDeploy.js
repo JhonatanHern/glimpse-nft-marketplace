@@ -1,5 +1,5 @@
 const CONTRACT_NAME = 'Marketplace';
-const safe = '0x42261b574358b4EE8ad3D43FB416B4D82D61CD93';
+const safe = '0x1b7744df94d87d4598af8f0f404953253a3fa636';
 const masterWallet = '0x1c9458660891A6C6ad27bc9e348B7C285c149014';
 
 // modify when needed
