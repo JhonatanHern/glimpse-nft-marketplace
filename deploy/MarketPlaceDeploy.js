@@ -1,17 +1,20 @@
 const CONTRACT_NAME = 'Marketplace';
+
 const safe = '0x1b7744df94d87d4598af8f0f404953253a3fa636';
 const masterWallet = '0x1c9458660891A6C6ad27bc9e348B7C285c149014';
+const tokenAddress = "0x75f53011f6d51c60e6dcbf54a8b1bcb54f07f0c9";
 
 // modify when needed
 module.exports = async ({ getNamedAccounts, deployments }) => {
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
   const Token = await deployments.get('GLIMPSE');
+  console.log(Token.address)
 
   await deploy(CONTRACT_NAME, {
     from: deployer,
     log: true,
-    args: [Token.address, 10, safe, masterWallet],
+    args: [tokenAddress, 10, safe, masterWallet],
   });
 };
 
