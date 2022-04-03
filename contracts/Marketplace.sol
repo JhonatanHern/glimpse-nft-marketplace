@@ -27,7 +27,7 @@ contract Marketplace is ERC721{
     address private masterWallet; //wallet that pay fees
     
     modifier onlyMasterWallet(){
-      require(msg.sender == masterWallet, "you have not permission to do that!");
+      require(msg.sender == masterWallet, "you do not have the permission to do that!");
       _;
     } 
 
@@ -74,5 +74,15 @@ contract Marketplace is ERC721{
         price[tokenId] = 0;
         paymentToken.safeTransferFrom(sender, safe, tax);
         _transfer(owner, sender, tokenId);
+    }
+    function tokenURI(uint256 _tokenId) public view override virtual returns (string memory){
+        require(_exists(_tokenId), "ERC721Metadata: URI query for nonexistent token");
+
+        return string(
+            abi.encodePacked(
+                "ipfs://" ,
+                fileHash[_tokenId]
+            )
+        );
     }
 }
