@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.4;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -12,26 +12,27 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
  * 3 - Direct purchase for a set price
 */
 
-contract Marketplace is ERC721{
+contract ERC1155Marketplace is ERC1155{
     using SafeERC20 for IERC20;
 
     mapping(uint => string) public fileHash;// ipfs hash
     mapping(uint => uint) public authorComissionPercent;// percent of auction that goes to the author
     mapping(uint => address) public author;// this separates the author from the owner for commission purposes
-    mapping(uint => uint) public price;// price for direct purchase
+    // NFTId => (seller => pricePerUnit)
+    mapping(uint => mapping(address => uint)) public price;// price for direct purchase
     mapping(string => bool) hashExists;
     uint private taxRate;// tax = price / taxRate
     uint private counter;
     IERC20 private paymentToken;
     address private safe;// address to withdraw earnings
-    address private masterWallet; //wallet that pay fees
+    address private masterWallet; //wallet that pay fees and has admin rights
     
     modifier onlyMasterWallet(){
       require(msg.sender == masterWallet, "you do not have the permission to do that!");
       _;
     } 
 
-    constructor(address _paymentToken, uint _taxRate, address _safe, address _masterWallet) ERC721("Glimpse", "GLMS"){
+    constructor(address _paymentToken, uint _taxRate, address _safe,address _masterWallet) ERC1155("https://game.example/api/item/{id}.json"){
         paymentToken = IERC20(_paymentToken);
         taxRate = _taxRate;
         safe = _safe;
@@ -43,46 +44,34 @@ contract Marketplace is ERC721{
     }
 
 
-    function masterMint(string calldata _videoHash, uint _authorComissionPercent, address sender) external onlyMasterWallet returns(uint) {
+    function masterMint(string calldata _videoHash, uint _authorComissionPercent, address sender, uint amount) external onlyMasterWallet returns(uint) {
         require(!hashExists[_videoHash], "file already registered");
         require(_authorComissionPercent <= 10, "Author comission cannot excede 10%");
         fileHash[counter] = _videoHash;
         authorComissionPercent[counter] = _authorComissionPercent;
         author[counter] = sender;
         hashExists[_videoHash] = true;
-        _mint(sender, counter);
+        _mint(sender, counter, amount, "");
         counter++;
         return counter - 1;
     }
 
     function masterSetPrice(uint tokenId, uint newPrice, address sender) external onlyMasterWallet { // set price for direct purchase
-        require(sender == ownerOf(tokenId), "Must be owner to set price");
-        price[tokenId] = newPrice;
+        price[tokenId][sender] = newPrice;
     }
 
-    function masterBuy(uint tokenId, address sender) external onlyMasterWallet { // make direct purchase
-        require(price[tokenId] > 0, "NFT not for sale");
-        uint tax = price[tokenId] / taxRate;
-        address owner = ownerOf(tokenId);
-        if (author[tokenId] == owner) {
-            paymentToken.safeTransferFrom(sender, owner, price[tokenId] - tax);
+    function masterBuy(uint tokenId, address buyer, address seller, uint amount) external onlyMasterWallet { // make direct purchase
+        require(price[tokenId][seller] > 0, "NFT not for sale");
+        uint tax = price[tokenId][seller] * amount / taxRate;
+        if (author[tokenId] == seller) {
+            paymentToken.safeTransferFrom(buyer, seller, amount * price[tokenId][seller] - tax);
         } else {
-            uint authorComission = price[tokenId] * authorComissionPercent[tokenId] / 100;
-            paymentToken.safeTransferFrom(sender, owner, price[tokenId] - tax - authorComission);
-            paymentToken.safeTransferFrom(sender, author[tokenId], authorComission);
+            uint authorComission = price[tokenId][seller] * amount * authorComissionPercent[tokenId] / 100;
+            paymentToken.safeTransferFrom(buyer, seller, price[tokenId][seller] * amount - tax - authorComission);
+            paymentToken.safeTransferFrom(buyer, author[tokenId], authorComission);
         }
-        price[tokenId] = 0;
-        paymentToken.safeTransferFrom(sender, safe, tax);
-        _transfer(owner, sender, tokenId);
-    }
-    function tokenURI(uint256 _tokenId) public view override virtual returns (string memory){
-        require(_exists(_tokenId), "ERC721Metadata: URI query for nonexistent token");
-
-        return string(
-            abi.encodePacked(
-                "ipfs://" ,
-                fileHash[_tokenId]
-            )
-        );
+        price[tokenId][seller] = 0;
+        paymentToken.safeTransferFrom(buyer, safe, tax);
+        _safeTransferFrom(seller, buyer, tokenId, amount, "");
     }
 }
